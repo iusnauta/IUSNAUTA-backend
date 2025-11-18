@@ -1,45 +1,72 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from openai import OpenAI
+import openai
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+from llama_index.vector_stores.opensearch import OpenSearchVectorStore
+from llama_index.core import StorageContext
 import os
+import uvicorn
+
+# ===========================
+# CONFIG
+# ===========================
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+if not OPENAI_API_KEY:
+    print("ERROR: OPENAI_API_KEY no está configurada en Render")
+    raise SystemExit
+
+openai.api_key = OPENAI_API_KEY
 
 app = FastAPI()
 
-# CORS para permitir tu frontend
+# Permitir CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # más seguro luego definimos tu dominio real
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-client = OpenAI()
-
-VECTOR_STORE_ID = "vs_691c4e07f84c8191b366aa54cfe795a1"   # ← tu vector store real
-
-class Query(BaseModel):
-    question: str
-
-@app.post("/query")
-async def legal_query(body: Query):
-    response = client.chat.completions.create(
-        model="gpt-4.1-mini",
-        messages=[
-            {"role": "system", "content": "Eres un asistente legal experto en leyes de Honduras."},
-            {"role": "user", "content": body.question}
-        ],
-        extra_body={
-            "vector_store_id": VECTOR_STORE_ID,
-            "search": True
-        }
-    )
-
-    return {
-        "answer": response.choices[0].message.content
-    }
-
+# ===========================
+# RUTA DE PRUEBA
+# ===========================
 @app.get("/")
 def root():
-    return {"status": "IUSNAUTA backend OK"}
+    return {"status": "IUSNAUTA backend funcionando correctamente 🚀"}
+
+# ===========================
+# CHAT BÁSICO
+# ===========================
+@app.post("/chat")
+async def chat_endpoint(payload: dict):
+    question = payload.get("question", "")
+
+    if not question:
+        return {"error": "Falta 'question' en el JSON"}
+
+    try:
+        completion = openai.ChatCompletion.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": question}],
+        )
+        answer = completion.choices[0].message["content"]
+
+        return {"answer": answer}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+# ===========================
+# HEALTHCHECK (Render lo usa)
+# ===========================
+@app.get("/healthz")
+def health_check():
+    return {"status": "ok"}
+
+# ===========================
+# EJECUCIÓN LOCAL (Render NO usa esto)
+# ===========================
+if __name__ == "__main__":
+    uvicorn.run("server:app", host="0.0.0.0", port=10000, reload=True)

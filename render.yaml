@@ -2,10 +2,10 @@ services:
   - type: web
     name: iusnauta-backend
     env: python
-    plan: free
-    region: oregon     # usa el más cercano con disponibilidad
+    region: ohio
+    plan: starter
     buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn server:app --host 0.0.0.0 --port 10000"
     envVars:
       - key: OPENAI_API_KEY
-        sync: false     # la clave la agregarás manualmente en Render
+        sync: false
