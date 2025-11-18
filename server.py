@@ -1,58 +1,45 @@
 from fastapi import FastAPI, Form
-import chromadb
+from fastapi.middleware.cors import CORSMiddleware
 from openai import OpenAI
+import os
 
 app = FastAPI()
 
-# ---------------------------
-# 1. Conectar con tu base legal
-# ---------------------------
-chroma_client = chromadb.PersistentClient(path="./legal_db")
-collection = chroma_client.get_collection("honduras_legal")
+# Permitir CORS (importante para el frontend React)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# ---------------------------
-# 2. Cliente OpenAI (nuevo SDK)
-# ---------------------------
-client = OpenAI()  # Usa OPENAI_API_KEY de Windows automáticamente
+client = OpenAI()
 
+VECTOR_STORE_ID = "vs_691c4e07f84c8191b366aa54cfe795a1"
 
-def search_legal(query: str):
-    """Busca los 5 fragmentos más relevantes de la base hondureña."""
-    results = collection.query(
-        query_texts=[query],
-        n_results=5
-    )
-    return "\n\n---\n\n".join(results["documents"][0])
-
+@app.get("/healthz")
+def health():
+    return {"status": "ok"}
 
 @app.post("/query")
-async def legal_query(query: str = Form(...)):
-    # 1. Recuperar contexto legal
-    context = search_legal(query)
-
-    # 2. Llamar a OpenAI usando el endpoint correcto del SDK 2024+
-    response = client.chat.completions.create(
-        model="gpt-4.1",      # usa el modelo que tengas disponible
-        messages=[
-            {
-                "role": "system",
-                "content": "Eres IUSNAUTA, analista jurídico hondureño experto."
-            },
-            {
-                "role": "user",
-                "content": f"""
-Consulta jurídica: {query}
-
-Contexto legal hondureño encontrado:
-{context}
-
-Produce un análisis jurídico claro, estructurado y fundamentado.
-"""
+def query_legal(query: str = Form(...)):
+    """
+    Consulta legal a IUSNAUTA usando Vector Store en OpenAI.
+    """
+    try:
+        response = client.responses.create(
+            model="gpt-4.1-mini",
+            input=query,
+            reasoning={"effort": "medium"},
+            extra_body={
+                "search_contexts": [
+                    {
+                        "type": "vector_store",
+                        "id": VECTOR_STORE_ID
+                    }
+                ]
             }
-        ]
-    )
-
-    return {
-        "respuesta": response.choices[0].message["content"],
-        "base_usada": context
-    }
+        )
+        return {"answer": response.output_text}
+    except Exception as e:
+        return {"error": str(e)}
