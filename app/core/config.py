@@ -6,7 +6,7 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str
     OPENAI_VECTOR_STORE_ID: str
-    OPENAI_ASSISTANT_ID: str = ""
+    OPENAI_ASSISTANT_ID: str = "asst_cRsrzKT7XheTlk9yJc4htGZx"
 
     class Config:
         env_file = ".env"
