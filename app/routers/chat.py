@@ -12,7 +12,7 @@ async def chat_with_lex(request: ChatRequest):
     """
 
     try:
-        result = await openai_service.chat_with_rag(
+        result = openai_service.chat_with_rag(
             message=request.message,
             thread_id=request.thread_id
         )

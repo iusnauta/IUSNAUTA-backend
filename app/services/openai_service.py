@@ -6,7 +6,7 @@ class OpenAIService:
         self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
         self.assistant_id = settings.OPENAI_ASSISTANT_ID
 
-    async def chat_with_rag(self, message: str, thread_id: str | None):
+    def chat_with_rag(self, message: str, thread_id: str | None):
         """
         Envía un mensaje al Assistant de OpenAI usando su Thread RAG.
         Si no existe thread, se crea uno nuevo.
