@@ -9,29 +9,25 @@ VECTOR_STORE_ID = "vs_691c4e07f84c8191b366aa54cfe795a1"
 
 class OpenAIService:
 
-    async def chat_with_rag(self, message: str, thread_id: str = None):
+    def chat_with_rag(self, message: str, thread_id: str = None):
         """
-        Chat legal con retrieval REAL y correcto.
-        - Usa tu assistant configurado en OpenAI
-        - Usa el vector store
-        - Espera a que el run termine
-        - Devuelve el mensaje FINAL del assistant
+        Implementación síncrona correcta (igual que test_rag.py)
         """
 
         try:
-            # 1. Crear thread si no existe
+            # 1. Crear thread si no viene en request
             if thread_id is None:
                 thread = client.beta.threads.create()
                 thread_id = thread.id
 
-            # 2. Crear el mensaje del usuario (sin attachments manuales)
+            # 2. Crear mensaje
             client.beta.threads.messages.create(
                 thread_id=thread_id,
                 role="user",
                 content=message
             )
 
-            # 3. Crear el RUN con retrieval forzado
+            # 3. Crear run con retrieval forzado
             run = client.beta.threads.runs.create(
                 thread_id=thread_id,
                 assistant_id=settings.ASSISTANT_ID,
@@ -39,9 +35,9 @@ class OpenAIService:
                 temperature=0,
                 top_p=0.1,
                 instructions=(
-                    "Obligatorio: Usa retrieval SIEMPRE.\n"
-                    "Cita el ARTÍCULO EXACTO de las leyes subidas.\n"
-                    "Si no existe, responde: 'no encontrado en la base documental'."
+                    "Usa SIEMPRE retrieval. "
+                    "Cita artículos EXACTOS. "
+                    "Si no está en los PDFs, responde: 'no encontrado en la base documental'."
                 ),
                 tools=[
                     {
@@ -51,32 +47,28 @@ class OpenAIService:
                         }
                     }
                 ],
-                tool_choice="file_search"  # Forzar que SIEMPRE use búsqueda
+                tool_choice="file_search"
             )
 
-            # 4. Esperar a que el run termine
+            # 4. Esperar a que termine
             while True:
-                current = client.beta.threads.runs.retrieve(
-                    thread_id=thread_id,
-                    run_id=run.id,
+                r = client.beta.threads.runs.retrieve(
+                    thread_id=thread_id, run_id=run.id
                 )
-
-                if current.status == "completed":
+                if r.status == "completed":
                     break
-
-                if current.status in ["failed", "cancelled", "expired"]:
-                    raise Exception(f"Run failed: {current.status}")
-
+                if r.status in ["failed", "cancelled"]:
+                    raise Exception(f"Run failed: {r.status}")
                 time.sleep(1)
 
-            # 5. Leer el último mensaje del assistant
+            # 5. Leer respuesta final del assistant
             messages = client.beta.threads.messages.list(thread_id=thread_id)
-            final_message = messages.data[0].content[0].text.value
+            final_text = messages.data[0].content[0].text.value
 
             return {
-                "response": final_message,
+                "response": final_text,
                 "thread_id": thread_id,
-                "sources": []  # si quieres, luego te muestro cómo extraerlas
+                "sources": []
             }
 
         except Exception as e:
