@@ -7,21 +7,16 @@ openai_service = OpenAIService()
 
 @router.post("/chat", response_model=ChatResponse)
 def chat_with_lex(request: ChatRequest):
-    """
-    Endpoint principal de RAG: mensaje → vectores → respuesta legal citada.
-    """
     try:
         result = openai_service.chat_with_rag(
             message=request.message,
             thread_id=request.thread_id
         )
-
         return ChatResponse(
             response=result["response"],
             thread_id=result["thread_id"],
-            sources=result["sources"]
+            sources=[]
         )
-
     except Exception as e:
         raise HTTPException(
             status_code=500,
