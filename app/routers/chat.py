@@ -6,7 +6,10 @@ router = APIRouter()
 openai_service = OpenAIService()
 
 @router.post("/chat", response_model=ChatResponse)
-def chat_with_lex(request: ChatRequest):
+async def chat_with_lex(request: ChatRequest):   # ✅ AHORA SÍ async
+    """
+    Endpoint principal de RAG usando Responses API.
+    """
     try:
         result = await openai_service.chat_with_rag(
             message=request.message,
@@ -15,8 +18,9 @@ def chat_with_lex(request: ChatRequest):
         return ChatResponse(
             response=result["response"],
             thread_id=result["thread_id"],
-            sources=[]
+            sources=result["sources"]
         )
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
