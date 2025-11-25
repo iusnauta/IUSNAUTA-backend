@@ -1,45 +1,46 @@
 from openai import OpenAI
 from app.core.config import settings
 
-# Cliente síncrono → soporta attachments sin errores
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 class OpenAIService:
 
     def chat_with_rag(self, message: str, thread_id: str = None):
-        """
-        Chat RAG usando Responses API (sin async porque async rompe attachments).
-        """
 
         try:
-            response = client.responses.create(
-                model="gpt-4.1",
-                input=[
-                    {
-                        "role": "user",
-                        "content": message
-                    }
-                ],
-                # Vector store ATTACHMENT CORRECTO
+            # Crear thread si no existe
+            if thread_id is None:
+                thread = client.beta.threads.create()
+                thread_id = thread.id
+
+            # Añadir mensaje + vector store
+            client.beta.threads.messages.create(
+                thread_id=thread_id,
+                role="user",
+                content=message,
                 attachments=[
                     {
+                        "type": "vector_store",
                         "vector_store_id": settings.OPENAI_VECTOR_STORE_ID
                     }
-                ],
-                instructions=(
-                    "Usa SIEMPRE retrieval del vector store.\n"
-                    "Cita SOLO artículos EXACTOS del documento.\n"
-                    "No inventes nada.\n"
-                    "Si no encuentras el artículo, responde: "
-                    "'no encontrado en la base documental'."
-                ),
-                temperature=0,
-                top_p=0.1,
+                ]
+            )
+
+            # Ejecutar el asistente
+            run = client.beta.threads.runs.create(
+                thread_id=thread_id,
+                assistant_id=settings.OPENAI_ASSISTANT_ID,
+            )
+
+            # Esperar respuesta
+            result = client.beta.threads.runs.retrieve(
+                thread_id=thread_id,
+                run_id=run.id
             )
 
             return {
-                "response": response.output_text,
-                "thread_id": None,
+                "response": result.output_text,
+                "thread_id": thread_id,
                 "sources": []
             }
 
