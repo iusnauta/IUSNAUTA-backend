@@ -8,7 +8,7 @@ openai_service = OpenAIService()
 @router.post("/chat", response_model=ChatResponse)
 def chat_with_lex(request: ChatRequest):
     try:
-        result = openai_service.chat_with_rag(
+        result = await openai_service.chat_with_rag(
             message=request.message,
             thread_id=request.thread_id
         )

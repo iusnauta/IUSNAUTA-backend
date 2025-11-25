@@ -1,18 +1,18 @@
-from openai import OpenAI
+from openai import AsyncOpenAI
 from app.core.config import settings
 
-client = OpenAI(api_key=settings.OPENAI_API_KEY)
+client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 class OpenAIService:
 
     async def chat_with_rag(self, message: str, thread_id: str = None):
         """
-        Chat RAG usando OpenAI Responses API (formato nuevo).
+        Chat RAG usando OpenAI Responses API (formato nuevo) + async correcto.
         """
 
         try:
-            # Responses API no usa threads. Los ignoramos.
-            response = client.responses.create(
+            # REAL: Responses API async
+            response = await client.responses.create(
                 model="gpt-4.1",
                 input=[
                     {
@@ -20,28 +20,26 @@ class OpenAIService:
                         "content": message
                     }
                 ],
-                # 🔥 Aquí va el vector store
                 attachments=[
                     {
-                        "vector_store_id": settings.OPENAI_VECTOR_STORE_ID
+                        "vector_store_id": settings.OPENAI_VECTOR_STORE_ID,
+                        "type": "vector_store"
                     }
                 ],
-                # 🔥 Instrucciones súper estrictas al modelo
                 instructions=(
-                    "Usa SIEMPRE retrieval del vector store.\n"
+                    "Usa SIEMPRE retrieval.\n"
                     "Cita SOLO artículos EXACTOS.\n"
                     "No inventes.\n"
-                    "Si no encuentras el artículo, responde: 'no encontrado en la base documental'."
+                    "Si no encuentras, responde: 'no encontrado en la base documental'."
                 ),
                 temperature=0,
                 top_p=0.1
             )
 
-            # Responses API devuelve texto así:
-            output_text = response.output_text
+            output = response.output_text
 
             return {
-                "response": output_text,
+                "response": output,
                 "thread_id": None,
                 "sources": []
             }
