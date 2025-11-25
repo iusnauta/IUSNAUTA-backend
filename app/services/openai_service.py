@@ -1,18 +1,18 @@
-from openai import AsyncOpenAI
+from openai import OpenAI
 from app.core.config import settings
 
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+# Cliente síncrono → soporta attachments sin errores
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 class OpenAIService:
 
-    async def chat_with_rag(self, message: str, thread_id: str = None):
+    def chat_with_rag(self, message: str, thread_id: str = None):
         """
-        Chat RAG usando OpenAI Responses API (formato nuevo) + async correcto.
+        Chat RAG usando Responses API (sin async porque async rompe attachments).
         """
 
         try:
-            # REAL: Responses API async
-            response = await client.responses.create(
+            response = client.responses.create(
                 model="gpt-4.1",
                 input=[
                     {
@@ -20,26 +20,25 @@ class OpenAIService:
                         "content": message
                     }
                 ],
+                # Vector store ATTACHMENT CORRECTO
                 attachments=[
                     {
-                        "vector_store_id": settings.OPENAI_VECTOR_STORE_ID,
-                        "type": "vector_store"
+                        "vector_store_id": settings.OPENAI_VECTOR_STORE_ID
                     }
                 ],
                 instructions=(
-                    "Usa SIEMPRE retrieval.\n"
-                    "Cita SOLO artículos EXACTOS.\n"
-                    "No inventes.\n"
-                    "Si no encuentras, responde: 'no encontrado en la base documental'."
+                    "Usa SIEMPRE retrieval del vector store.\n"
+                    "Cita SOLO artículos EXACTOS del documento.\n"
+                    "No inventes nada.\n"
+                    "Si no encuentras el artículo, responde: "
+                    "'no encontrado en la base documental'."
                 ),
                 temperature=0,
-                top_p=0.1
+                top_p=0.1,
             )
 
-            output = response.output_text
-
             return {
-                "response": output,
+                "response": response.output_text,
                 "thread_id": None,
                 "sources": []
             }
